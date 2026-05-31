@@ -1,0 +1,12 @@
+CLAUDE.md
+README.private.md
+.gradle/
+build/
+.loom-cache/
+.idea/
+*.iml
+out/
+bin/
+.vscode/
+run/
+.mr*

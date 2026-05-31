@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "schemfinder",
+  "version": "${version}",
+  "name": "Schemfinder",
+  "description": "Scan the loaded world for blocks and structures that match your saved patterns. Highlights, chat coords, and a HUD list. MaLiLib addon.",
+  "authors": ["Limucc-dev"],
+  "contact": {
+    "sources": "https://github.com/dev-limucc/schemfinder"
+  },
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["dev.limucc.schemfinder.client.SchemfinderClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.2",
+    "minecraft": "~26.1",
+    "java": ">=25",
+    "fabric-api": "*",
+    "malilib": "*"
+  }
+}
