@@ -12,7 +12,8 @@
   "icon": "assets/histb/icon.png",
   "environment": "client",
   "entrypoints": {
-    "client": ["dev.limucc.histb.client.HistbClient"]
+    "client": ["dev.limucc.histb.client.HistbClient"],
+    "modmenu": ["dev.limucc.histb.client.gui.ModMenuIntegration"]
   },
   "depends": {
     "fabricloader": ">=0.19.2",
