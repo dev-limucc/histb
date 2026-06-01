@@ -58,7 +58,7 @@ public class HistbClient implements ClientModInitializer {
         HighlightRenderer.register();
         ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
 
-        LOGGER.info("HISTB loaded. T target, [ ] corners, K capture, G scan, O patterns.");
+        LOGGER.info("HISTB? loaded. T target, [ ] corners, K capture, G scan, O patterns.");
     }
 
     private static KeyMapping reg(String id, int key) {
@@ -134,7 +134,7 @@ public class HistbClient implements ClientModInitializer {
                 int dist = (int) m.distanceTo(p);
                 String orient = "—".equals(m.orientation()) ? "" : " §8[" + m.orientation() + "]";
                 mc.player.sendSystemMessage(Component.literal(
-                        "§e[HISTB] §f" + m.patternName()
+                        "§e[HISTB?] §f" + m.patternName()
                         + " §7@ §b" + o.getX() + " " + o.getY() + " " + o.getZ()
                         + " §7(" + dist + "m)" + orient));
             }
