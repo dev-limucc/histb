@@ -1,4 +1,4 @@
-# 👀 Haven't I Seen This Before? (HISTB?)
+﻿# 👀 Haven't I Seen This Before? (HISTB?)
 
 **Find any build in your Minecraft world — automatically.**
 
@@ -30,21 +30,7 @@ Great for:
 - Finding all your **villager halls / iron farms / shops** across a big base
 - Spotting **duplicate builds** on a server
 - Locating a **specific structure** you keep losing
-
----
-
-## ✨ Features
-
-- 🔍 **Auto-scan, X-ray style** — turn it on and it finds matches all around you, live, while you move. No clicking "scan", no selecting an area.
-- 🧱 **Whole-build matching** — matches a complete structure (dozens to thousands of blocks in the right places), not just single blocks.
-- 🔄 **Finds rotated & mirrored copies** — a build turned sideways or flipped still gets found (toggle per axis).
-- 🎚️ **Match how strict you want** — *Exact* (block + state), *Block type only*, or *Ignore air* (loose match that ignores gaps).
-- 🟦 **Litematica-style highlights** — outline boxes, filled boxes, or both — with custom **color**, **see-through-walls**, and line thickness.
-- 📂 **Uses Litematica files** — load `.litematic` (and vanilla `.nbt` structure) files directly. Make them in Litematica, find them with HISTB?.
-- 🪶 **Lag-free** — scans on a background thread and skips chunks that can't contain your build, so your FPS stays smooth.
-- 🎛️ **Clean tabbed menu** — everything in Mod Menu (General · Matching · Display · Patterns · Schematics). No config files to edit.
-- ⌨️ **No keybind clashes** — all hotkeys are **unbound by default**; bind only what you want.
-- 🧩 **Client-side only** — works on any server; nothing to install server-side.
+- Hunting **specific bedrock formations** (perfect holes, pillars, patterns)
 
 ---
 
