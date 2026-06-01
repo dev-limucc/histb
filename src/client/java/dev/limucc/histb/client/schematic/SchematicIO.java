@@ -73,7 +73,11 @@ public final class SchematicIO {
         int sz = Math.abs(size.getInt("z").orElse(0));
         if (sx == 0 || sy == 0 || sz == 0) throw new Exception("Bad region size");
         long volume = (long) sx * sy * sz;
-        if (volume > 200000) throw new Exception("Too large (" + volume + " blocks)");
+        // Cap is the schematic's bounding-box VOLUME (incl. air), not block count — a
+        // 50k-block build inside a big/spread box can have a much larger volume. Generous
+        // limit; the section-palette-culled scanner keeps even large patterns cheap.
+        if (volume > 4_000_000) throw new Exception("Schematic bounding box too large ("
+                + volume + " cells). Split it into smaller pieces.");
 
         // palette: list of blockstate compounds (Name + Properties)
         ListTag palette = region.getListOrEmpty("BlockStatePalette");

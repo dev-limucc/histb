@@ -79,40 +79,83 @@ public class Scanner {
         worker.start();
     }
 
-    // ── Multi-block pattern matching (anchor-based) ───────────────────────────
+    // ── Multi-block pattern matching (anchor-based, section-palette culled) ───
+    //
+    // Instead of testing every block in render distance, we walk chunk SECTIONS and
+    // skip any 16³ section whose palette can't contain a pattern's anchor block
+    // (LevelChunkSection.maybeHas) and any all-air section. This is Litematica's trick
+    // and turns "scan every block" into "scan only sections that actually contain the
+    // anchor" — typically a 10–100× cut, which is the main FPS win and lets big
+    // patterns scan cheaply.
     private static void scanPatterns(ClientLevel level, BlockPos center, int radius,
                                      List<Pattern> patterns, List<Orientation> orients,
                                      ModConfig.MatchMode strict, List<Match> out) {
         long r2 = (long) radius * radius;
-        Bounds b = bounds(level, center, radius);
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         BlockPos.MutableBlockPos probe = new BlockPos.MutableBlockPos();
 
-        for (Pattern p : patterns) {
-            int[] anchor = firstSolid(p);
-            if (anchor == null) continue;
-            var anchorBlock = p.at(anchor[0], anchor[1], anchor[2]).getBlock();
+        // Precompute each pattern's anchor block + a per-section predicate.
+        int n = patterns.size();
+        var anchors = new int[n][];
+        var anchorBlocks = new net.minecraft.world.level.block.Block[n];
+        for (int i = 0; i < n; i++) {
+            anchors[i] = firstSolid(patterns.get(i));
+            if (anchors[i] != null) anchorBlocks[i] = patterns.get(i).at(anchors[i][0], anchors[i][1], anchors[i][2]).getBlock();
+        }
 
-            for (int wx = b.minX; wx <= b.maxX; wx++) {
-                for (int wz = b.minZ; wz <= b.maxZ; wz++) {
-                    if (!level.hasChunk(SectionPos.blockToSectionCoord(wx), SectionPos.blockToSectionCoord(wz))) continue;
-                    for (int wy = b.minY; wy <= b.maxY; wy++) {
-                        cursor.set(wx, wy, wz);
-                        if (center.distSqr(cursor) > r2) continue;
-                        if (!level.getBlockState(cursor).is(anchorBlock)) continue;
+        int minCX = SectionPos.blockToSectionCoord(center.getX() - radius);
+        int maxCX = SectionPos.blockToSectionCoord(center.getX() + radius);
+        int minCZ = SectionPos.blockToSectionCoord(center.getZ() - radius);
+        int maxCZ = SectionPos.blockToSectionCoord(center.getZ() + radius);
+        int minSecY = SectionPos.blockToSectionCoord(Math.max(level.getMinY(), center.getY() - radius));
+        int maxSecY = SectionPos.blockToSectionCoord(Math.min(level.getMaxY(), center.getY() + radius));
 
-                        for (Orientation o : orients) {
-                            int ax = o.tx(anchor[0], anchor[1], anchor[2]);
-                            int ay = o.ty(anchor[0], anchor[1], anchor[2]);
-                            int az = o.tz(anchor[0], anchor[1], anchor[2]);
-                            int ox = wx - ax, oy = wy - ay, oz = wz - az;
-                            if (matchesAt(level, p, o, ox, oy, oz, strict, probe)) {
-                                int[] bb = worldBounds(p, o, ox, oy, oz);
-                                out.add(new Match(new BlockPos(ox, oy, oz),
-                                        new BlockPos(bb[0], bb[1], bb[2]),
-                                        new BlockPos(bb[3], bb[4], bb[5]),
-                                        p.name, o.label));
-                                break;
+        for (int cx = minCX; cx <= maxCX; cx++) {
+            for (int cz = minCZ; cz <= maxCZ; cz++) {
+                if (!level.hasChunk(cx, cz)) continue;
+                var chunk = level.getChunk(cx, cz);
+
+                for (int secY = minSecY; secY <= maxSecY; secY++) {
+                    int secIdx = level.getSectionIndex(SectionPos.sectionToBlockCoord(secY));
+                    var sections = chunk.getSections();
+                    if (secIdx < 0 || secIdx >= sections.length) continue;
+                    var section = sections[secIdx];
+                    if (section == null || section.hasOnlyAir()) continue;
+
+                    // Which patterns' anchors might be in this section?
+                    for (int i = 0; i < n; i++) {
+                        if (anchors[i] == null) continue;
+                        final var ab = anchorBlocks[i];
+                        if (!section.maybeHas(s -> s.is(ab))) continue; // PALETTE CULL — the big win
+
+                        Pattern p = patterns.get(i);
+                        int[] anchor = anchors[i];
+                        int baseX = cx << 4, baseY = SectionPos.sectionToBlockCoord(secY), baseZ = cz << 4;
+
+                        for (int lx = 0; lx < 16; lx++) {
+                            int wx = baseX + lx;
+                            for (int lz = 0; lz < 16; lz++) {
+                                int wz = baseZ + lz;
+                                for (int ly = 0; ly < 16; ly++) {
+                                    int wy = baseY + ly;
+                                    cursor.set(wx, wy, wz);
+                                    if (center.distSqr(cursor) > r2) continue;
+                                    if (!section.getBlockState(lx, ly, lz).is(ab)) continue;
+
+                                    for (Orientation o : orients) {
+                                        int ox = wx - o.tx(anchor[0], anchor[1], anchor[2]);
+                                        int oy = wy - o.ty(anchor[0], anchor[1], anchor[2]);
+                                        int oz = wz - o.tz(anchor[0], anchor[1], anchor[2]);
+                                        if (matchesAt(level, p, o, ox, oy, oz, strict, probe)) {
+                                            int[] bb = worldBounds(p, o, ox, oy, oz);
+                                            out.add(new Match(new BlockPos(ox, oy, oz),
+                                                    new BlockPos(bb[0], bb[1], bb[2]),
+                                                    new BlockPos(bb[3], bb[4], bb[5]),
+                                                    p.name, o.label));
+                                            break;
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
