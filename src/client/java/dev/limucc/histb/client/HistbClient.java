@@ -3,7 +3,7 @@ package dev.limucc.histb.client;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.limucc.histb.client.config.ConfigManager;
 import dev.limucc.histb.client.config.ModConfig;
-import dev.limucc.histb.client.gui.HubScreen;
+import dev.limucc.histb.client.gui.HistbConfigScreen;
 import dev.limucc.histb.client.render.HighlightRenderer;
 import dev.limucc.histb.client.render.HighlightStore;
 import dev.limucc.histb.client.scan.Scanner;
@@ -61,7 +61,7 @@ public class HistbClient implements ClientModInitializer {
 
     private void onTick(Minecraft mc) {
         while (KEY_TOGGLE.consumeClick()) toggle(mc);
-        while (KEY_OPEN.consumeClick()) { if (mc.screen == null) mc.setScreen(new HubScreen(null)); }
+        while (KEY_OPEN.consumeClick()) { if (mc.screen == null) mc.setScreen(new HistbConfigScreen(null)); }
 
         // Continuous X-ray-style scan
         Scanner.tick();
