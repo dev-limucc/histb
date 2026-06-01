@@ -62,20 +62,8 @@ public class SchematicLoadScreen extends Screen {
         }
         files.sort(Comparator.comparing(p -> p.getFileName().toString().toLowerCase()));
 
-        addRenderableWidget(Button.builder(Component.literal("Export active patterns → .litematic"), b -> exportAll())
-                .bounds(cx - 180, this.height - 28, 220, 20).build());
         addRenderableWidget(Button.builder(Component.literal("Done"), b -> onClose())
-                .bounds(cx + 50, this.height - 28, 100, 20).build());
-    }
-
-    private void exportAll() {
-        Path outDir = FabricLoader.getInstance().getGameDir().resolve("schematics");
-        int n = 0;
-        for (ModConfig.SavedPattern sp : ConfigManager.get().patterns) {
-            try { SchematicIO.exportLitematic(sp, outDir.resolve(sp.name + ".litematic")); n++; }
-            catch (Exception e) { HistbClient.LOGGER.error("Export failed for {}", sp.name, e); }
-        }
-        status = "§aExported " + n + " pattern(s) to " + outDir;
+                .bounds(cx - 50, this.height - 28, 100, 20).build());
     }
 
     @Override

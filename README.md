@@ -13,8 +13,8 @@ structures matching your schematics and highlights every match in real time — 
 No area selection, no manual scan, no timers, no limits. It just works while you move, like X-ray.
 
 ## Features
-- **File-based patterns** — load Litematica `.litematic` and vanilla `.nbt` structure files. (You can
-  also export your loaded patterns back to `.litematic`.)
+- **File-based patterns** — load Litematica `.litematic` and vanilla `.nbt` structure files. Create
+  and save them in Litematica; HISTB? loads them and finds them in your world.
 - **Whole-structure matching** — matches the exact relative arrangement of every block (dozens to
   thousands), not just single blocks.
 - **Rotations & mirrors** — finds the structure rotated around X / Y / Z and mirrored (toggleable).
