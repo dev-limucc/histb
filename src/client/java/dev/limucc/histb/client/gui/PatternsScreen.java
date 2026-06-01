@@ -121,7 +121,7 @@ public class PatternsScreen extends Screen {
 
         var patterns = ConfigManager.get().patterns;
         if (patterns.isEmpty()) {
-            String hint = "No patterns yet — select two corners ([ and ]) and press K to capture.";
+            String hint = "No patterns yet — use \"Load Schematic\" to add a .litematic / .nbt file.";
             g.text(this.font, hint, panelLeft, listTop + 4, 0xFFA0A0A0);
             return;
         }
