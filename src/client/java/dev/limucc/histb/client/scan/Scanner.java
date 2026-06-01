@@ -6,11 +6,11 @@ import dev.limucc.histb.client.config.ModConfig;
 import dev.limucc.histb.client.pattern.Orientation;
 import dev.limucc.histb.client.pattern.Pattern;
 import dev.limucc.histb.client.pattern.PatternStore;
+import dev.limucc.histb.client.render.HighlightStore;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
@@ -18,132 +18,107 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Scanner. Two modes:
- *   - If any saved pattern is ACTIVE → multi-block structure matching (anchor-based,
- *     with enabled rotations/mirrors and the configured strictness).
- *   - Else if a single-block target is set → fast single-block find (milestone 1).
+ * Continuous, X-ray-style scanner.
  *
- * Runs off the main thread; results handed back on the client thread via mc.execute.
+ * When the mod is enabled, a throttled background loop re-scans the player's
+ * loaded area (render distance) and publishes matches to the HighlightStore, which
+ * the renderer draws every frame. No manual trigger, no radius picker, no cap.
+ *
+ * Performance: anchor-based matching with section-palette culling, run off the
+ * main thread; one scan in flight at a time; re-scan at most every RESCAN_MS.
  */
 public class Scanner {
 
+    private static final long RESCAN_MS = 1500;
+
     private static final AtomicBoolean running = new AtomicBoolean(false);
+    private static volatile long lastScanEnd = 0L;
 
-    /** Single-block fallback target (set via the T key). */
-    public static volatile Block targetBlock = null;
-
-    public interface ResultSink { void accept(List<Match> matches, boolean truncated); }
-
-    public static boolean isRunning() { return running.get(); }
-
-    public static void scanAsync(ResultSink onDone) {
-        if (!running.compareAndSet(false, true)) return;
-
-        Minecraft mc = Minecraft.getInstance();
-        ClientLevel level = mc.level;
-        if (level == null || mc.player == null) { running.set(false); return; }
-
-        BlockPos center = mc.player.blockPosition();
-        int radius = Math.max(16, Math.min(256, ConfigManager.get().scanRadius));
-        int maxMatches = Math.max(1, ConfigManager.get().maxMatches);
+    /** Called every client tick. Kicks off a background scan when due. */
+    public static void tick() {
         ModConfig cfg = ConfigManager.get();
+        Minecraft mc = Minecraft.getInstance();
+        if (!cfg.enabled || mc.level == null || mc.player == null) {
+            HighlightStore.clear();
+            return;
+        }
+        if (running.get()) return;
+        if (System.currentTimeMillis() - lastScanEnd < RESCAN_MS) return;
+        if (ConfigManager.get().patterns.stream().noneMatch(p -> p.active)) {
+            HighlightStore.clear();
+            return;
+        }
+        kickScan(mc);
+    }
 
-        // Build runtime patterns on the client thread (registry access) before going async.
+    private static void kickScan(Minecraft mc) {
+        if (!running.compareAndSet(false, true)) return;
+        ClientLevel level = mc.level;
+        BlockPos center = mc.player.blockPosition();
+        // "loaded area" = render distance in blocks (X-ray style), capped for safety.
+        int rd = mc.options.getEffectiveRenderDistance();
+        int radius = Math.max(32, Math.min(160, rd * 16));
+
         List<Pattern> patterns = PatternStore.activePatterns();
-        Block single = targetBlock;
-        List<Orientation> orients = Orientation.enabled(cfg);
-        ModConfig.MatchMode strict = cfg.matchMode;
+        List<Orientation> orients = Orientation.enabled(ConfigManager.get());
+        ModConfig.MatchMode strict = ConfigManager.get().matchMode;
 
         Thread worker = new Thread(() -> {
             List<Match> out = new ArrayList<>();
-            boolean truncated = false;
             try {
-                if (!patterns.isEmpty()) {
-                    truncated = scanPatterns(level, center, radius, patterns, orients, strict, maxMatches, out);
-                } else if (single != null) {
-                    truncated = scanSingle(level, center, radius, single, maxMatches, out);
-                }
+                if (!patterns.isEmpty()) scanPatterns(level, center, radius, patterns, orients, strict, out);
             } catch (Throwable t) {
                 HistbClient.LOGGER.error("Scan failed", t);
             } finally {
+                lastScanEnd = System.currentTimeMillis();
                 running.set(false);
             }
-            final boolean tr = truncated;
-            mc.execute(() -> onDone.accept(out, tr));
+            mc.execute(() -> HighlightStore.set(out));
         }, "histb-scan");
         worker.setDaemon(true);
         worker.start();
     }
 
-    // ── Single-block (milestone 1) ────────────────────────────────────────────
-    private static boolean scanSingle(ClientLevel level, BlockPos center, int radius,
-                                      Block target, int maxMatches, List<Match> out) {
-        long r2 = (long) radius * radius;
-        BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
-        Bounds b = bounds(level, center, radius);
-        for (int wx = b.minX; wx <= b.maxX; wx++)
-            for (int wy = b.minY; wy <= b.maxY; wy++)
-                for (int wz = b.minZ; wz <= b.maxZ; wz++) {
-                    m.set(wx, wy, wz);
-                    if (center.distSqr(m) > r2) continue;
-                    if (!level.hasChunk(SectionPos.blockToSectionCoord(wx), SectionPos.blockToSectionCoord(wz))) continue;
-                    if (level.getBlockState(m).is(target)) {
-                        BlockPos pos = m.immutable();
-                        out.add(new Match(pos, pos, pos, keyName(target), "—"));
-                        if (out.size() >= maxMatches) return true;
-                    }
-                }
-        return false;
-    }
-
     // ── Multi-block pattern matching (anchor-based) ───────────────────────────
-    private static boolean scanPatterns(ClientLevel level, BlockPos center, int radius,
-                                        List<Pattern> patterns, List<Orientation> orients,
-                                        ModConfig.MatchMode strict, int maxMatches, List<Match> out) {
+    private static void scanPatterns(ClientLevel level, BlockPos center, int radius,
+                                     List<Pattern> patterns, List<Orientation> orients,
+                                     ModConfig.MatchMode strict, List<Match> out) {
         long r2 = (long) radius * radius;
         Bounds b = bounds(level, center, radius);
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         BlockPos.MutableBlockPos probe = new BlockPos.MutableBlockPos();
 
-        // Precompute each pattern's anchor: first non-air cell.
         for (Pattern p : patterns) {
-            int[] anchor = firstSolid(p); // {x,y,z} local, or null
+            int[] anchor = firstSolid(p);
             if (anchor == null) continue;
-            BlockState anchorState = p.at(anchor[0], anchor[1], anchor[2]);
-            Block anchorBlock = anchorState.getBlock();
+            var anchorBlock = p.at(anchor[0], anchor[1], anchor[2]).getBlock();
 
             for (int wx = b.minX; wx <= b.maxX; wx++) {
-                for (int wy = b.minY; wy <= b.maxY; wy++) {
-                    for (int wz = b.minZ; wz <= b.maxZ; wz++) {
-                        if (!level.hasChunk(SectionPos.blockToSectionCoord(wx), SectionPos.blockToSectionCoord(wz))) continue;
+                for (int wz = b.minZ; wz <= b.maxZ; wz++) {
+                    if (!level.hasChunk(SectionPos.blockToSectionCoord(wx), SectionPos.blockToSectionCoord(wz))) continue;
+                    for (int wy = b.minY; wy <= b.maxY; wy++) {
                         cursor.set(wx, wy, wz);
                         if (center.distSqr(cursor) > r2) continue;
                         if (!level.getBlockState(cursor).is(anchorBlock)) continue;
 
-                        // This world cell matches the anchor block. Try each orientation:
                         for (Orientation o : orients) {
-                            // world origin so that anchor maps onto (wx,wy,wz)
                             int ax = o.tx(anchor[0], anchor[1], anchor[2]);
                             int ay = o.ty(anchor[0], anchor[1], anchor[2]);
                             int az = o.tz(anchor[0], anchor[1], anchor[2]);
                             int ox = wx - ax, oy = wy - ay, oz = wz - az;
                             if (matchesAt(level, p, o, ox, oy, oz, strict, probe)) {
-                                // bounding box of the rotated structure in world space
                                 int[] bb = worldBounds(p, o, ox, oy, oz);
-                                out.add(new Match(
-                                        new BlockPos(ox, oy, oz),
+                                out.add(new Match(new BlockPos(ox, oy, oz),
                                         new BlockPos(bb[0], bb[1], bb[2]),
                                         new BlockPos(bb[3], bb[4], bb[5]),
                                         p.name, o.label));
-                                if (out.size() >= maxMatches) return true;
-                                break; // don't double-count same origin via other orientations
+                                break;
                             }
                         }
                     }
                 }
             }
         }
-        return false;
     }
 
     private static boolean matchesAt(ClientLevel level, Pattern p, Orientation o,
@@ -154,7 +129,7 @@ public class Scanner {
                 for (int z = 0; z < p.sz; z++) {
                     BlockState want = p.at(x, y, z);
                     boolean wantAir = (want == null);
-                    if (wantAir && strict == ModConfig.MatchMode.IGNORE_AIR) continue; // wildcard
+                    if (wantAir && strict == ModConfig.MatchMode.IGNORE_AIR) continue;
                     int wx = ox + o.tx(x, y, z);
                     int wy = oy + o.ty(x, y, z);
                     int wz = oz + o.tz(x, y, z);
@@ -172,23 +147,19 @@ public class Scanner {
         return true;
     }
 
-    /** World-space inclusive bounding box {minX,minY,minZ,maxX,maxY,maxZ} of the rotated pattern. */
     private static int[] worldBounds(Pattern p, Orientation o, int ox, int oy, int oz) {
-        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
-        // corners of the local box are enough to bound an axis-aligned rotation
+        int minX=Integer.MAX_VALUE,minY=Integer.MAX_VALUE,minZ=Integer.MAX_VALUE;
+        int maxX=Integer.MIN_VALUE,maxY=Integer.MIN_VALUE,maxZ=Integer.MIN_VALUE;
         int[][] corners = {
             {0,0,0},{p.sx-1,0,0},{0,p.sy-1,0},{0,0,p.sz-1},
             {p.sx-1,p.sy-1,0},{p.sx-1,0,p.sz-1},{0,p.sy-1,p.sz-1},{p.sx-1,p.sy-1,p.sz-1}
         };
         for (int[] c : corners) {
-            int wx = ox + o.tx(c[0], c[1], c[2]);
-            int wy = oy + o.ty(c[0], c[1], c[2]);
-            int wz = oz + o.tz(c[0], c[1], c[2]);
-            minX = Math.min(minX, wx); minY = Math.min(minY, wy); minZ = Math.min(minZ, wz);
-            maxX = Math.max(maxX, wx); maxY = Math.max(maxY, wy); maxZ = Math.max(maxZ, wz);
+            int wx=ox+o.tx(c[0],c[1],c[2]), wy=oy+o.ty(c[0],c[1],c[2]), wz=oz+o.tz(c[0],c[1],c[2]);
+            minX=Math.min(minX,wx); minY=Math.min(minY,wy); minZ=Math.min(minZ,wz);
+            maxX=Math.max(maxX,wx); maxY=Math.max(maxY,wy); maxZ=Math.max(maxZ,wz);
         }
-        return new int[]{minX, minY, minZ, maxX, maxY, maxZ};
+        return new int[]{minX,minY,minZ,maxX,maxY,maxZ};
     }
 
     private static int[] firstSolid(Pattern p) {
@@ -204,10 +175,5 @@ public class Scanner {
         return new Bounds(
             c.getX()-r, Math.max(level.getMinY(), c.getY()-r), c.getZ()-r,
             c.getX()+r, Math.min(level.getMaxY(), c.getY()+r), c.getZ()+r);
-    }
-
-    private static String keyName(Block b) {
-        var id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(b);
-        return id == null ? "block" : id.getPath();
     }
 }

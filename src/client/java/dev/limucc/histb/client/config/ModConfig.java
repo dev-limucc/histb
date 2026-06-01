@@ -3,49 +3,43 @@ package dev.limucc.histb.client.config;
 import java.util.ArrayList;
 import java.util.List;
 
-/** All HISTB settings + saved patterns. Persisted as JSON. */
+/**
+ * HISTB? settings + loaded patterns. Persisted as JSON.
+ *
+ * Design (Litematica/MiniHUD style): when enabled, it continuously scans your
+ * loaded area and keeps live highlights — like X-ray. No manual scan, no radius
+ * picker, no match cap, no timer. Patterns come from .litematic / .nbt files.
+ */
 public class ModConfig {
 
-    public boolean enabled = true;
-    public ScanMode scanMode = ScanMode.MANUAL;
-    public int scanRadius = 64;
-    public int autoIntervalMs = 1500;
-    public int autoMinMove = 8;
+    /** Master on/off. Toggled by the (unbound) keybind or in the GUI. */
+    public boolean enabled = false;
 
-    public boolean rotateY = true;
+    // ── Orientation matching ──────────────────────────────────────────────────
+    public boolean rotateY = true;   // 4 horizontal rotations
     public boolean rotateX = false;
     public boolean rotateZ = false;
     public boolean mirror  = true;
 
+    // ── Match strictness ──────────────────────────────────────────────────────
     public MatchMode matchMode = MatchMode.IGNORE_AIR;
 
-    public boolean chatCoords = true;
-    public boolean showHud    = true;
+    // ── Output ────────────────────────────────────────────────────────────────
+    public boolean chatCoords = false;  // off by default — highlights are the main feedback
+    public boolean showBoxes  = true;
 
-    public int maxMatches = 50;
-
-    // ── Highlight rendering (fully customizable) ──────────────────────────────
-    public boolean showBoxes = true;
-    /** LINES = wireframe outline, FILLED = translucent sides, BOTH = sides + outline. */
+    // ── Highlight rendering (Litematica-like, fully customizable) ─────────────
     public HighlightStyle highlightStyle = HighlightStyle.BOTH;
-    /** Box color as 0xRRGGBB. */
-    public int boxColor = 0x00E0FF;     // cyan
-    /** Outline opacity 0–1 (lines). */
+    public int boxColor = 0x00E0FF;     // cyan, 0xRRGGBB
     public float outlineAlpha = 1.0f;
-    /** Fill opacity 0–1 (sides). */
     public float fillAlpha = 0.18f;
-    /** Outline line width. */
     public float lineWidth = 2.0f;
-    /** Render through walls (no depth test). */
     public boolean throughWalls = true;
-    /** How long matches stay highlighted after a scan, in seconds (0 = until next scan). */
-    public int highlightSeconds = 30;
-    /** Expand the box slightly beyond the blocks so it's easier to see. */
     public float boxExpand = 0.02f;
 
+    /** Loaded patterns (from .litematic / .nbt). Each can be toggled active. */
     public List<SavedPattern> patterns = new ArrayList<>();
 
-    public enum ScanMode { MANUAL, AUTO }
     public enum MatchMode { EXACT, BLOCK_ONLY, IGNORE_AIR }
     public enum HighlightStyle { LINES, FILLED, BOTH }
 
