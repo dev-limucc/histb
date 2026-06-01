@@ -3,7 +3,7 @@ package dev.limucc.histb.client;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.limucc.histb.client.capture.RegionSelector;
 import dev.limucc.histb.client.config.ConfigManager;
-import dev.limucc.histb.client.gui.PatternsScreen;
+import dev.limucc.histb.client.gui.HubScreen;
 import dev.limucc.histb.client.render.HighlightRenderer;
 import dev.limucc.histb.client.render.HighlightStore;
 import dev.limucc.histb.client.scan.Match;
@@ -48,17 +48,20 @@ public class HistbClient implements ClientModInitializer {
     public void onInitializeClient() {
         ConfigManager.load();
 
-        KEY_TARGET  = reg("key.histb.target",  InputConstants.KEY_T);
-        KEY_SCAN    = reg("key.histb.scan",    InputConstants.KEY_G);
-        KEY_POS1    = reg("key.histb.pos1",    InputConstants.KEY_LBRACKET);
-        KEY_POS2    = reg("key.histb.pos2",    InputConstants.KEY_RBRACKET);
-        KEY_CAPTURE = reg("key.histb.capture", InputConstants.KEY_K);
-        KEY_OPEN    = reg("key.histb.open",    InputConstants.KEY_O);
+        // All keys UNBOUND by default — everything is reachable from ModMenu / the Hub.
+        // The user binds whatever they want under Options → Controls.
+        int none = InputConstants.UNKNOWN.getValue();
+        KEY_OPEN    = reg("key.histb.open",    none);
+        KEY_SCAN    = reg("key.histb.scan",    none);
+        KEY_POS1    = reg("key.histb.pos1",    none);
+        KEY_POS2    = reg("key.histb.pos2",    none);
+        KEY_CAPTURE = reg("key.histb.capture", none);
+        KEY_TARGET  = reg("key.histb.target",  none);
 
         HighlightRenderer.register();
         ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
 
-        LOGGER.info("HISTB? loaded. T target, [ ] corners, K capture, G scan, O patterns.");
+        LOGGER.info("HISTB? loaded. Open via ModMenu; all keybinds unbound by default.");
     }
 
     private static KeyMapping reg(String id, int key) {
@@ -67,12 +70,12 @@ public class HistbClient implements ClientModInitializer {
     }
 
     private void onTick(Minecraft mc) {
+        while (KEY_OPEN.consumeClick())    { if (mc.screen == null) mc.setScreen(new HubScreen(null)); }
         while (KEY_TARGET.consumeClick())  setTargetFromCrosshair(mc);
         while (KEY_POS1.consumeClick())    setCorner(mc, true);
         while (KEY_POS2.consumeClick())    setCorner(mc, false);
         while (KEY_CAPTURE.consumeClick()) overlay(mc, RegionSelector.capture(null));
         while (KEY_SCAN.consumeClick())    runScan(mc);
-        while (KEY_OPEN.consumeClick())    { if (mc.screen == null) mc.setScreen(new PatternsScreen(null)); }
     }
 
     private void setTargetFromCrosshair(Minecraft mc) {
@@ -106,15 +109,16 @@ public class HistbClient implements ClientModInitializer {
         if (mc.player == null) return;
         boolean hasActive = ConfigManager.get().patterns.stream().anyMatch(p -> p.active);
         if (!hasActive && Scanner.targetBlock == null) {
-            overlay(mc, "§eNothing to find — capture a pattern (K) or set a target block (T)");
+            overlay(mc, "§eNothing to find — capture/load a pattern, or set a target block");
             return;
         }
         if (Scanner.isRunning()) { overlay(mc, "§7Scan already running…"); return; }
         overlay(mc, "§7Scanning radius " + ConfigManager.get().scanRadius + "…");
-        Scanner.scanAsync((matches, truncated) -> report(mc, matches, truncated));
+        Scanner.scanAsync((matches, truncated) -> reportFromHub(mc, matches, truncated));
     }
 
-    private void report(Minecraft mc, List<Match> matches, boolean truncated) {
+    /** Public so the Hub's "Scan Now" button can report results too. */
+    public static void reportFromHub(Minecraft mc, List<Match> matches, boolean truncated) {
         if (mc.player == null) return;
         var cfg = ConfigManager.get();
         if (matches.isEmpty()) { HighlightStore.clear(); overlay(mc, "§cNope — never seen that one"); return; }
