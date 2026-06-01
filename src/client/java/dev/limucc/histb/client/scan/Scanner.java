@@ -88,7 +88,8 @@ public class Scanner {
                     if (center.distSqr(m) > r2) continue;
                     if (!level.hasChunk(SectionPos.blockToSectionCoord(wx), SectionPos.blockToSectionCoord(wz))) continue;
                     if (level.getBlockState(m).is(target)) {
-                        out.add(new Match(m.immutable(), keyName(target), "—"));
+                        BlockPos pos = m.immutable();
+                        out.add(new Match(pos, pos, pos, keyName(target), "—"));
                         if (out.size() >= maxMatches) return true;
                     }
                 }
@@ -127,7 +128,13 @@ public class Scanner {
                             int az = o.tz(anchor[0], anchor[1], anchor[2]);
                             int ox = wx - ax, oy = wy - ay, oz = wz - az;
                             if (matchesAt(level, p, o, ox, oy, oz, strict, probe)) {
-                                out.add(new Match(new BlockPos(ox, oy, oz), p.name, o.label));
+                                // bounding box of the rotated structure in world space
+                                int[] bb = worldBounds(p, o, ox, oy, oz);
+                                out.add(new Match(
+                                        new BlockPos(ox, oy, oz),
+                                        new BlockPos(bb[0], bb[1], bb[2]),
+                                        new BlockPos(bb[3], bb[4], bb[5]),
+                                        p.name, o.label));
                                 if (out.size() >= maxMatches) return true;
                                 break; // don't double-count same origin via other orientations
                             }
@@ -163,6 +170,25 @@ public class Scanner {
             }
         }
         return true;
+    }
+
+    /** World-space inclusive bounding box {minX,minY,minZ,maxX,maxY,maxZ} of the rotated pattern. */
+    private static int[] worldBounds(Pattern p, Orientation o, int ox, int oy, int oz) {
+        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+        // corners of the local box are enough to bound an axis-aligned rotation
+        int[][] corners = {
+            {0,0,0},{p.sx-1,0,0},{0,p.sy-1,0},{0,0,p.sz-1},
+            {p.sx-1,p.sy-1,0},{p.sx-1,0,p.sz-1},{0,p.sy-1,p.sz-1},{p.sx-1,p.sy-1,p.sz-1}
+        };
+        for (int[] c : corners) {
+            int wx = ox + o.tx(c[0], c[1], c[2]);
+            int wy = oy + o.ty(c[0], c[1], c[2]);
+            int wz = oz + o.tz(c[0], c[1], c[2]);
+            minX = Math.min(minX, wx); minY = Math.min(minY, wy); minZ = Math.min(minZ, wz);
+            maxX = Math.max(maxX, wx); maxY = Math.max(maxY, wy); maxZ = Math.max(maxZ, wz);
+        }
+        return new int[]{minX, minY, minZ, maxX, maxY, maxZ};
     }
 
     private static int[] firstSolid(Pattern p) {

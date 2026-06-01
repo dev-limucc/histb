@@ -54,9 +54,45 @@ public class PatternsScreen extends Screen {
             ConfigManager.save(); b.setMessage(rotLabel());
         }).bounds(panelLeft + bw + 40 + gap, by, bw + 40, 20).build());
 
+        // Second row: highlight controls
+        int by2 = by + 24;
+        addRenderableWidget(Button.builder(boxesLabel(), b -> {
+            ModConfig c = ConfigManager.get();
+            c.showBoxes = !c.showBoxes;
+            ConfigManager.save(); b.setMessage(boxesLabel());
+        }).bounds(panelLeft, by2, 90, 20).build());
+
+        addRenderableWidget(Button.builder(styleLabel(), b -> {
+            ModConfig c = ConfigManager.get();
+            c.highlightStyle = switch (c.highlightStyle) {
+                case LINES  -> ModConfig.HighlightStyle.FILLED;
+                case FILLED -> ModConfig.HighlightStyle.BOTH;
+                case BOTH   -> ModConfig.HighlightStyle.LINES;
+            };
+            ConfigManager.save(); b.setMessage(styleLabel());
+        }).bounds(panelLeft + 96, by2, 110, 20).build());
+
+        addRenderableWidget(Button.builder(wallsLabel(), b -> {
+            ModConfig c = ConfigManager.get();
+            c.throughWalls = !c.throughWalls;
+            ConfigManager.save(); b.setMessage(wallsLabel());
+        }).bounds(panelLeft + 212, by2, 118, 20).build());
+
         addRenderableWidget(Button.builder(Component.literal("Done"), b -> onClose())
                 .bounds(cx - 50, this.height - 26, 100, 20).build());
+
+        this.listTop = by2 + 28; // push the list below both control rows
     }
+
+    private Component boxesLabel() { return Component.literal("Boxes: " + onOff(ConfigManager.get().showBoxes)); }
+    private Component wallsLabel() { return Component.literal("Thru walls: " + onOff(ConfigManager.get().throughWalls)); }
+    private Component styleLabel() {
+        String s = switch (ConfigManager.get().highlightStyle) {
+            case LINES -> "LINES"; case FILLED -> "FILLED"; case BOTH -> "BOTH";
+        };
+        return Component.literal("Style: " + s);
+    }
+    private static String onOff(boolean b) { return b ? "§aON" : "§cOFF"; }
 
     private Component strictLabel() {
         String s = switch (ConfigManager.get().matchMode) {
