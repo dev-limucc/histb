@@ -72,8 +72,12 @@ public class Scanner {
         if (!running.compareAndSet(false, true)) return;
         final ClientLevel level = mc.level;
         BlockPos center = mc.player.blockPosition();
+        // Scan the FULL loaded area (render distance). We can only find structures in
+        // loaded chunks anyway, so this is the natural ceiling — like X-ray reaching as
+        // far as you can see. Palette culling keeps even this cheap. Cap is just a safety
+        // net for extreme render distances.
         int rd = mc.options.getEffectiveRenderDistance();
-        int radius = Math.max(32, Math.min(160, rd * 16));
+        int radius = Math.max(48, Math.min(512, rd * 16));
 
         List<Pattern> patterns = PatternStore.activePatterns();
         List<Orientation> orients = Orientation.enabled(ConfigManager.get());

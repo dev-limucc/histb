@@ -203,9 +203,8 @@ public class HistbConfigScreen extends Screen {
         int tw = this.font.width(this.title);
         g.text(this.font, this.title, this.width / 2 - tw / 2, 12, 0xFFFFFFFF);
 
-        // content panel (Cloth-like dark area under the tab row)
-        g.fill(panelL, contentTop, panelR, panelB, 0x66000000);
-        g.fill(panelL, contentTop, panelR, contentTop + 1, 0xFF3A3A3A); // top border
+        // subtle separator line under the tab row — no dark fill (keeps it light, like Cloth)
+        g.fill(panelL, contentTop, panelR, contentTop + 1, 0x40FFFFFF);
 
         if (tab == Tab.PATTERNS)   renderPatterns(g, mouseX, mouseY);
         if (tab == Tab.SCHEMATICS) renderSchematics(g, mouseX, mouseY);
