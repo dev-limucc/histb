@@ -1,17 +1,18 @@
 {
   "schemaVersion": 1,
-  "id": "schemfinder",
+  "id": "histb",
   "version": "${version}",
-  "name": "Schemfinder",
-  "description": "Scan the loaded world for blocks and structures that match your saved patterns. Highlights, chat coords, and a HUD list. MaLiLib addon.",
+  "name": "Haven't I Seen This Before?",
+  "description": "Scan the loaded world for blocks and structures that match your saved patterns. Wait — haven't I seen this before? Highlights, chat coords, and a HUD list. MaLiLib addon.",
   "authors": ["Limucc-dev"],
   "contact": {
-    "sources": "https://github.com/dev-limucc/schemfinder"
+    "sources": "https://github.com/dev-limucc/histb"
   },
   "license": "MIT",
+  "icon": "assets/histb/icon.png",
   "environment": "client",
   "entrypoints": {
-    "client": ["dev.limucc.schemfinder.client.SchemfinderClient"]
+    "client": ["dev.limucc.histb.client.HistbClient"]
   },
   "depends": {
     "fabricloader": ">=0.19.2",
