@@ -34,6 +34,22 @@ public class Scanner {
     private static final AtomicBoolean running = new AtomicBoolean(false);
     private static volatile long lastScanEnd = 0L;
 
+    /**
+     * Aborts the in-flight scan and blocks new ones. Set when the world is being
+     * left (disconnect) so the worker never touches chunks during save/unload —
+     * which is what could hang the "Saving world…" screen. Bumped per scan so a
+     * stale worker from a previous world can't publish or keep reading.
+     */
+    private static volatile boolean aborted = false;
+    private static final java.util.concurrent.atomic.AtomicInteger scanGen = new java.util.concurrent.atomic.AtomicInteger();
+
+    /** Called on disconnect (world unload). Stops any scan immediately. */
+    public static void onWorldLeave() {
+        aborted = true;
+        scanGen.incrementAndGet();   // invalidate any running worker
+        HighlightStore.clear();
+    }
+
     /** Called every client tick. Kicks off a background scan when due. */
     public static void tick() {
         ModConfig cfg = ConfigManager.get();
@@ -42,6 +58,7 @@ public class Scanner {
             HighlightStore.clear();
             return;
         }
+        aborted = false; // world is present and we're ticking — scanning is allowed
         if (running.get()) return;
         if (System.currentTimeMillis() - lastScanEnd < RESCAN_MS) return;
         if (ConfigManager.get().patterns.stream().noneMatch(p -> p.active)) {
@@ -53,30 +70,38 @@ public class Scanner {
 
     private static void kickScan(Minecraft mc) {
         if (!running.compareAndSet(false, true)) return;
-        ClientLevel level = mc.level;
+        final ClientLevel level = mc.level;
         BlockPos center = mc.player.blockPosition();
-        // "loaded area" = render distance in blocks (X-ray style), capped for safety.
         int rd = mc.options.getEffectiveRenderDistance();
         int radius = Math.max(32, Math.min(160, rd * 16));
 
         List<Pattern> patterns = PatternStore.activePatterns();
         List<Orientation> orients = Orientation.enabled(ConfigManager.get());
         ModConfig.MatchMode strict = ConfigManager.get().matchMode;
+        final int gen = scanGen.get();
 
         Thread worker = new Thread(() -> {
             List<Match> out = new ArrayList<>();
             try {
-                if (!patterns.isEmpty()) scanPatterns(level, center, radius, patterns, orients, strict, out);
+                if (!patterns.isEmpty()) scanPatterns(level, center, radius, patterns, orients, strict, out, gen);
             } catch (Throwable t) {
                 HistbClient.LOGGER.error("Scan failed", t);
             } finally {
                 lastScanEnd = System.currentTimeMillis();
                 running.set(false);
             }
-            mc.execute(() -> HighlightStore.set(out));
+            // Only publish if this world is still the live one (not torn down/replaced).
+            if (gen == scanGen.get() && !aborted) {
+                mc.execute(() -> { if (gen == scanGen.get() && Minecraft.getInstance().level == level) HighlightStore.set(out); });
+            }
         }, "histb-scan");
         worker.setDaemon(true);
         worker.start();
+    }
+
+    /** True if the current scan should stop NOW (world leaving / replaced). */
+    private static boolean shouldStop(int gen) {
+        return aborted || gen != scanGen.get();
     }
 
     // ── Multi-block pattern matching (anchor-based, section-palette culled) ───
@@ -89,7 +114,7 @@ public class Scanner {
     // patterns scan cheaply.
     private static void scanPatterns(ClientLevel level, BlockPos center, int radius,
                                      List<Pattern> patterns, List<Orientation> orients,
-                                     ModConfig.MatchMode strict, List<Match> out) {
+                                     ModConfig.MatchMode strict, List<Match> out, int gen) {
         long r2 = (long) radius * radius;
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         BlockPos.MutableBlockPos probe = new BlockPos.MutableBlockPos();
@@ -111,7 +136,9 @@ public class Scanner {
         int maxSecY = SectionPos.blockToSectionCoord(Math.min(level.getMaxY(), center.getY() + radius));
 
         for (int cx = minCX; cx <= maxCX; cx++) {
+            if (shouldStop(gen)) return;   // world leaving/replaced — abort immediately
             for (int cz = minCZ; cz <= maxCZ; cz++) {
+                if (shouldStop(gen)) return;
                 if (!level.hasChunk(cx, cz)) continue;
                 var chunk = level.getChunk(cx, cz);
 

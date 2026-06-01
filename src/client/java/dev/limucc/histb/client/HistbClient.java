@@ -9,6 +9,7 @@ import dev.limucc.histb.client.render.HighlightStore;
 import dev.limucc.histb.client.scan.Scanner;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -44,6 +45,11 @@ public class HistbClient implements ClientModInitializer {
 
         HighlightRenderer.register();
         ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
+
+        // Stop scanning the moment we leave a world, so the background worker can never
+        // touch chunks while the integrated server is saving/unloading them (which could
+        // hang the "Saving world…" screen on quit).
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> Scanner.onWorldLeave());
 
         LOGGER.info("HISTB? loaded. Toggle + Open are unbound by default; open via ModMenu.");
     }
