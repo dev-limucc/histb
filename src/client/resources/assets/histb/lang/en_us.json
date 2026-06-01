@@ -1,5 +1,9 @@
 {
   "key.histb.target": "Set Target Block (look at block)",
   "key.histb.scan": "Scan Now",
+  "key.histb.pos1": "Set Corner 1 (look at block)",
+  "key.histb.pos2": "Set Corner 2 (look at block)",
+  "key.histb.capture": "Capture Region as Pattern",
+  "key.histb.open": "Open Patterns Manager",
   "key.categories.histb": "Haven't I Seen This Before?"
 }

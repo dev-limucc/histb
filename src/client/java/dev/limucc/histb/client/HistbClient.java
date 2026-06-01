@@ -1,7 +1,9 @@
 package dev.limucc.histb.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import dev.limucc.histb.client.capture.RegionSelector;
 import dev.limucc.histb.client.config.ConfigManager;
+import dev.limucc.histb.client.gui.PatternsScreen;
 import dev.limucc.histb.client.scan.Match;
 import dev.limucc.histb.client.scan.Scanner;
 import net.fabricmc.api.ClientModInitializer;
@@ -24,36 +26,50 @@ import org.slf4j.LoggerFactory;
 
 /**
  * HISTB ("Haven't I Seen This Before?") client entrypoint.
- * Milestone 1 — single-block finder:
- *   - Key T: set the target = block you're looking at
- *   - Key G: scan loaded chunks within radius, print matches to chat
- * Structures, rotations, rendering and the GUI build on this.
+ *
+ * Keys:
+ *   T  — set single-block target (look at a block)
+ *   [  — set region corner 1 (look at a block)
+ *   ]  — set region corner 2 (look at a block)
+ *   K  — capture the selected region as a saved pattern
+ *   G  — scan now (matches active patterns, else the single-block target)
+ *   O  — open the Patterns manager (toggle active / delete / match settings)
  */
 public class HistbClient implements ClientModInitializer {
 
     public static final String MOD_ID = "histb";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-    public static KeyMapping KEY_TARGET;
-    public static KeyMapping KEY_SCAN;
+    public static KeyMapping KEY_TARGET, KEY_SCAN, KEY_POS1, KEY_POS2, KEY_CAPTURE, KEY_OPEN;
 
     @Override
     public void onInitializeClient() {
         ConfigManager.load();
 
-        KEY_TARGET = KeyMappingHelper.registerKeyMapping(new KeyMapping(
-                "key.histb.target", InputConstants.KEY_T, KeyMapping.Category.GAMEPLAY));
-        KEY_SCAN = KeyMappingHelper.registerKeyMapping(new KeyMapping(
-                "key.histb.scan", InputConstants.KEY_G, KeyMapping.Category.GAMEPLAY));
+        KEY_TARGET  = reg("key.histb.target",  InputConstants.KEY_T);
+        KEY_SCAN    = reg("key.histb.scan",    InputConstants.KEY_G);
+        KEY_POS1    = reg("key.histb.pos1",    InputConstants.KEY_LBRACKET);
+        KEY_POS2    = reg("key.histb.pos2",    InputConstants.KEY_RBRACKET);
+        KEY_CAPTURE = reg("key.histb.capture", InputConstants.KEY_K);
+        KEY_OPEN    = reg("key.histb.open",    InputConstants.KEY_O);
 
         ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
 
-        LOGGER.info("HISTB loaded. Target block: T, Scan: G");
+        LOGGER.info("HISTB loaded. T target, [ ] corners, K capture, G scan, O patterns.");
+    }
+
+    private static KeyMapping reg(String id, int key) {
+        return KeyMappingHelper.registerKeyMapping(
+                new KeyMapping(id, key, KeyMapping.Category.GAMEPLAY));
     }
 
     private void onTick(Minecraft mc) {
-        while (KEY_TARGET.consumeClick()) setTargetFromCrosshair(mc);
-        while (KEY_SCAN.consumeClick()) runScan(mc);
+        while (KEY_TARGET.consumeClick())  setTargetFromCrosshair(mc);
+        while (KEY_POS1.consumeClick())    setCorner(mc, true);
+        while (KEY_POS2.consumeClick())    setCorner(mc, false);
+        while (KEY_CAPTURE.consumeClick()) overlay(mc, RegionSelector.capture(null));
+        while (KEY_SCAN.consumeClick())    runScan(mc);
+        while (KEY_OPEN.consumeClick())    { if (mc.screen == null) mc.setScreen(new PatternsScreen(null)); }
     }
 
     private void setTargetFromCrosshair(Minecraft mc) {
@@ -70,11 +86,27 @@ public class HistbClient implements ClientModInitializer {
         overlay(mc, "§aTarget: §f" + (id == null ? "?" : id.getPath()) + " §7(press G to scan)");
     }
 
+    private void setCorner(Minecraft mc, boolean first) {
+        if (mc.player == null || mc.level == null) return;
+        HitResult hit = mc.hitResult;
+        if (hit == null || hit.getType() != HitResult.Type.BLOCK) {
+            overlay(mc, "§eLook at a block to set the corner");
+            return;
+        }
+        BlockPos pos = ((BlockHitResult) hit).getBlockPos();
+        if (first) { RegionSelector.setPos1(pos); overlay(mc, "§aCorner 1: §f" + pos.getX() + " " + pos.getY() + " " + pos.getZ()); }
+        else       { RegionSelector.setPos2(pos); overlay(mc, "§aCorner 2: §f" + pos.getX() + " " + pos.getY() + " " + pos.getZ()); }
+        if (RegionSelector.hasBothCorners()) overlay(mc, "§7Both corners set — press K to capture");
+    }
+
     private void runScan(Minecraft mc) {
         if (mc.player == null) return;
-        if (Scanner.targetBlock == null) { overlay(mc, "§eNo target — look at a block and press T"); return; }
+        boolean hasActive = ConfigManager.get().patterns.stream().anyMatch(p -> p.active);
+        if (!hasActive && Scanner.targetBlock == null) {
+            overlay(mc, "§eNothing to find — capture a pattern (K) or set a target block (T)");
+            return;
+        }
         if (Scanner.isRunning()) { overlay(mc, "§7Scan already running…"); return; }
-
         overlay(mc, "§7Scanning radius " + ConfigManager.get().scanRadius + "…");
         Scanner.scanAsync((matches, truncated) -> report(mc, matches, truncated));
     }
@@ -94,10 +126,11 @@ public class HistbClient implements ClientModInitializer {
                 Match m = matches.get(i);
                 BlockPos o = m.origin();
                 int dist = (int) m.distanceTo(p);
+                String orient = "—".equals(m.orientation()) ? "" : " §8[" + m.orientation() + "]";
                 mc.player.sendSystemMessage(Component.literal(
                         "§e[HISTB] §f" + m.patternName()
                         + " §7@ §b" + o.getX() + " " + o.getY() + " " + o.getZ()
-                        + " §7(" + dist + "m)"));
+                        + " §7(" + dist + "m)" + orient));
             }
             if (truncated) {
                 mc.player.sendSystemMessage(
