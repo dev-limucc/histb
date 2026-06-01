@@ -4,6 +4,8 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dev.limucc.histb.client.capture.RegionSelector;
 import dev.limucc.histb.client.config.ConfigManager;
 import dev.limucc.histb.client.gui.PatternsScreen;
+import dev.limucc.histb.client.render.HighlightRenderer;
+import dev.limucc.histb.client.render.HighlightStore;
 import dev.limucc.histb.client.scan.Match;
 import dev.limucc.histb.client.scan.Scanner;
 import net.fabricmc.api.ClientModInitializer;
@@ -53,6 +55,7 @@ public class HistbClient implements ClientModInitializer {
         KEY_CAPTURE = reg("key.histb.capture", InputConstants.KEY_K);
         KEY_OPEN    = reg("key.histb.open",    InputConstants.KEY_O);
 
+        HighlightRenderer.register();
         ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
 
         LOGGER.info("HISTB loaded. T target, [ ] corners, K capture, G scan, O patterns.");
@@ -114,10 +117,13 @@ public class HistbClient implements ClientModInitializer {
     private void report(Minecraft mc, List<Match> matches, boolean truncated) {
         if (mc.player == null) return;
         var cfg = ConfigManager.get();
-        if (matches.isEmpty()) { overlay(mc, "§cNope — never seen that one"); return; }
+        if (matches.isEmpty()) { HighlightStore.clear(); overlay(mc, "§cNope — never seen that one"); return; }
 
         BlockPos p = mc.player.blockPosition();
         matches.sort((a, b) -> Double.compare(a.distanceTo(p), b.distanceTo(p)));
+
+        // Feed the highlight renderer
+        HighlightStore.set(matches);
 
         overlay(mc, "§aSeen it! §a" + matches.size() + (truncated ? "+" : "") + " time(s)");
         if (cfg.chatCoords) {
