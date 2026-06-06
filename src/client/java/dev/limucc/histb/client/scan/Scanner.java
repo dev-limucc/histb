@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Continuous, X-ray-style scanner.
+ * Continuous schematic-match scanner.
  *
  * When the mod is enabled, a throttled background loop re-scans the player's
  * loaded area (render distance) and publishes matches to the HighlightStore, which
@@ -73,7 +73,7 @@ public class Scanner {
         final ClientLevel level = mc.level;
         BlockPos center = mc.player.blockPosition();
         // Scan the FULL loaded area (render distance). We can only find structures in
-        // loaded chunks anyway, so this is the natural ceiling — like X-ray reaching as
+        // loaded chunks anyway, so this is the natural ceiling, reaching as
         // far as you can see. Palette culling keeps even this cheap. Cap is just a safety
         // net for extreme render distances.
         int rd = mc.options.getEffectiveRenderDistance();

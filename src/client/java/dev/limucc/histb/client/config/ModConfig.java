@@ -7,7 +7,7 @@ import java.util.List;
  * HISTB? settings + loaded patterns. Persisted as JSON.
  *
  * Design (Litematica/MiniHUD style): when enabled, it continuously scans your
- * loaded area and keeps live highlights — like X-ray. No manual scan, no radius
+ * loaded area and keeps live highlights. No manual scan, no radius
  * picker, no match cap, no timer. Patterns come from .litematic / .nbt files.
  */
 public class ModConfig {

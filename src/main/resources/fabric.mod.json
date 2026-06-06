@@ -3,7 +3,7 @@
   "id": "histb",
   "version": "${version}",
   "name": "Haven't I Seen This Before?",
-  "description": "Scan the loaded world for blocks and structures that match your saved patterns. Wait — haven't I seen this before? Highlights, chat coords, and a HUD list. MaLiLib addon.",
+  "description": "A client-side MaLiLib companion that outlines every copy of your Litematica schematics in the world loaded around you — including rotated and mirrored matches. Visual overlay only: it never reads server data and never changes a block.",
   "authors": ["Limucc-dev"],
   "contact": {
     "sources": "https://github.com/dev-limucc/histb"

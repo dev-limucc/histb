@@ -170,7 +170,7 @@ public class HistbConfigScreen extends Screen {
         return Component.literal("Highlight style: §b" + s);
     }
     private Component colorLabel() { return Component.literal(String.format("Highlight color: §b#%06X", ConfigManager.get().boxColor)); }
-    private Component wallsLabel() { return Component.literal("See through walls: " + (ConfigManager.get().throughWalls ? "§aYes" : "§cNo")); }
+    private Component wallsLabel() { return Component.literal("Show through terrain: " + (ConfigManager.get().throughWalls ? "§aYes" : "§cNo")); }
     private Component chatLabel()  { return Component.literal("Print coords to chat: " + (ConfigManager.get().chatCoords ? "§aYes" : "§cNo")); }
 
     // ── schematics ──
@@ -209,7 +209,7 @@ public class HistbConfigScreen extends Screen {
         if (tab == Tab.PATTERNS)   renderPatterns(g, mouseX, mouseY);
         if (tab == Tab.SCHEMATICS) renderSchematics(g, mouseX, mouseY);
         if (tab == Tab.GENERAL) {
-            g.text(this.font, "§7X-ray-style scanner. Load schematics, then enable to highlight matches live.",
+            g.text(this.font, "§7Schematic match finder. Load a schematic, then enable to outline matches in your loaded area.",
                     panelL + 20, contentTop + 40, 0xFFA0A0A0);
         }
         if (!status.isEmpty()) g.text(this.font, status, panelL + 20, panelB - 14, 0xFFFFFFFF);
