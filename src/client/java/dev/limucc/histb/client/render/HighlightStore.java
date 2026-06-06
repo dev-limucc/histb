@@ -7,7 +7,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Holds the matches currently highlighted in-world. Replaced wholesale each time
- * the continuous scanner finishes a pass (live, X-ray style). Written on the
+ * the continuous scanner finishes a pass (live). Written on the
  * client thread, read by the renderer.
  */
 public final class HighlightStore {

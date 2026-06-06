@@ -19,7 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * HISTB? ("Haven't I Seen This Before?") — X-ray-style structure finder.
+ * HISTB? ("Haven't I Seen This Before?") — schematic-match structure finder.
  *
  * When enabled, it continuously scans the loaded area for your active patterns
  * (loaded from .litematic / .nbt) and highlights every match in real time.
@@ -63,7 +63,7 @@ public class HistbClient implements ClientModInitializer {
         while (KEY_TOGGLE.consumeClick()) toggle(mc);
         while (KEY_OPEN.consumeClick()) { if (mc.screen == null) mc.setScreen(new HistbConfigScreen(null)); }
 
-        // Continuous X-ray-style scan
+        // Continuous background scan
         Scanner.tick();
     }
 
