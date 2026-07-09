@@ -61,7 +61,7 @@ public class HistbClient implements ClientModInitializer {
 
     private void onTick(Minecraft mc) {
         while (KEY_TOGGLE.consumeClick()) toggle(mc);
-        while (KEY_OPEN.consumeClick()) { if (mc.screen == null) mc.setScreen(new HistbConfigScreen(null)); }
+        while (KEY_OPEN.consumeClick()) { if (mc.gui.screen() == null) mc.gui.setScreen(new HistbConfigScreen(null)); }
 
         // Continuous background scan
         Scanner.tick();
