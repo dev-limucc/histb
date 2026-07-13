@@ -2,6 +2,11 @@
 
 **Find every copy of your saved builds in the world around you — automatically.**
 
+<p align="center">
+  <img src="https://cdn.modrinth.com/data/ZijquGIP/images/652206566dd6e3f8d7b3c936b3a726172958c150.png" alt="Before scanning — the world as normal" width="49%" />
+  <img src="https://cdn.modrinth.com/data/ZijquGIP/images/989d371ca6dd9856aa984c0dd9a8ba5db5c50bb7.png" alt="Matched blocks highlighted after a scan" width="49%" />
+</p>
+
 Load one of your **Litematica** schematics and HISTB? outlines every place that build already exists in
 the area loaded around you — including **rotated** and **mirrored** copies. A lightweight, client-side
 companion for **MaLiLib** / **Litematica**.
@@ -126,3 +131,10 @@ Powered by **[MaLiLib](https://github.com/maruohon/malilib)** (by masa). Schemat
 **[Litematica](https://github.com/maruohon/litematica)**.
 
 MIT licensed — do what you like with it.
+
+## Gallery
+
+<p align="center">
+  <img src="https://cdn.modrinth.com/data/ZijquGIP/images/0ab948db4f6a7cc08734ca5d61b9e17a0918a307.png" alt="Patterns tab" width="49%" />
+  <img src="https://cdn.modrinth.com/data/ZijquGIP/images/cd5e079624f82d140458974bca738338b6eaa5c2.png" alt="Display settings" width="49%" />
+</p>
