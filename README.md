@@ -1,5 +1,7 @@
 # 👀 Haven't I Seen This Before? (HISTB?)
 
+[![build](https://github.com/dev-limucc/histb/actions/workflows/build.yml/badge.svg)](https://github.com/dev-limucc/histb/actions/workflows/build.yml)
+
 **Find every copy of your saved builds in the world around you — automatically.**
 
 <p align="center">
