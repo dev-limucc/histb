@@ -10,3 +10,6 @@ bin/
 .vscode/
 run/
 .mr*
+
+# Collected release jars
+dist/

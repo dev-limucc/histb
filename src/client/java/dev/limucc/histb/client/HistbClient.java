@@ -1,6 +1,7 @@
 package dev.limucc.histb.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import dev.limucc.histb.client.compat.ScreenNav;
 import dev.limucc.histb.client.config.ConfigManager;
 import dev.limucc.histb.client.config.ModConfig;
 import dev.limucc.histb.client.gui.HistbConfigScreen;
@@ -61,7 +62,7 @@ public class HistbClient implements ClientModInitializer {
 
     private void onTick(Minecraft mc) {
         while (KEY_TOGGLE.consumeClick()) toggle(mc);
-        while (KEY_OPEN.consumeClick()) { if (mc.gui.screen() == null) mc.gui.setScreen(new HistbConfigScreen(null)); }
+        while (KEY_OPEN.consumeClick()) { if (ScreenNav.current(mc) == null) ScreenNav.open(mc, new HistbConfigScreen(null)); }
 
         // Continuous background scan
         Scanner.tick();

@@ -13,7 +13,7 @@ Load one of your **Litematica** schematics and HISTB? outlines every place that 
 the area loaded around you — including **rotated** and **mirrored** copies. A lightweight, client-side
 companion for **MaLiLib** / **Litematica**.
 
-> Minecraft **26.1.2** · **Fabric** · client-side only · a visual overlay that never changes the world
+> Minecraft **26.1.2 / 26.2 / 26.3** · **Fabric** · client-side only · a visual overlay that never changes the world
 
 ---
 
@@ -60,7 +60,7 @@ block, and changes nothing for anyone else.
 👉 Most people also want **[Litematica](https://modrinth.com/mod/litematica)** — that's what you use to
 *make* the schematics HISTB? looks for.
 
-Make sure every mod matches Minecraft **26.1.2**.
+Make sure every mod matches your Minecraft version (**26.1.2**, **26.2** or **26.3** — there is one HISTB? jar per version).
 
 ---
 
@@ -101,7 +101,7 @@ Everything lives in the **Mod Menu** tabs — no config files to edit.
 |---------|-----|
 | **Nothing lights up** | Is it **ON** (General tab)? Is a pattern **ticked** (Patterns tab)? Is the build actually near you? |
 | **Only finds nearby builds** | It can only read **loaded chunks** — increase your render distance to search further. |
-| **Mod won't load** | Make sure **Fabric API** and **MaLiLib** are installed, all for **26.1.2**. |
+| **Mod won't load** | Make sure **Fabric API** and **MaLiLib** are installed, all for your Minecraft version (26.1.2, 26.2 or 26.3). |
 | **Rotated copies missed** | Turn on rotations/mirror in the **Matching** tab. |
 
 ---

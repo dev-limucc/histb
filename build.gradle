@@ -1,9 +1,26 @@
+// Multi-version Fabric build (all targets are unobfuscated 26.x -> the non-remapping 'net.fabricmc.fabric-loom').
+// Build one MC target with:  gradlew build "-Ptarget=<key>"     (default: 26.2)
 plugins {
     id 'net.fabricmc.fabric-loom' version "${loom_version}"
     id 'maven-publish'
 }
 
-version = project.mod_version
+// ---- multi-version target matrix --------------------------------------------
+// Each jar covers the 'range' it declares in fabric.mod.json. 'overlays' are per-era source dirs under
+// src/client/versions/<name>/java (compiled only for the targets that list them).
+def TARGETS = [
+    '26.1.2': [range: '~26.1', fapi: '0.150.0+26.1.2', modmenu: '18.0.0-beta.1', malilib: '0.28.12', java: 25, loaderReq: '>=0.19.2', overlays: ['nav-legacy', 'render-event']],
+    '26.2':   [range: '~26.2', fapi: '0.154.2+26.2',   modmenu: '20.0.0',        malilib: '0.29.6',  java: 25, loaderReq: '>=0.19.3', overlays: ['nav-262', 'render-event']],
+    '26.3':   [range: '~26.3', fapi: '0.165.2+26.3',   modmenu: '21.0.0',        malilib: '0.30.2',  java: 25, loaderReq: '>=0.20.1', loader: '0.20.1', overlays: ['nav-262', 'render-malilib']],
+]
+
+def targetVer = (findProperty('target') ?: '26.2').toString()
+def t = TARGETS[targetVer]
+if (t == null) throw new GradleException("Unknown -Ptarget=${targetVer}. Known targets: ${TARGETS.keySet()}")
+
+def loaderVer = (t.loader ?: project.loader_version).toString()
+
+version = "${project.mod_version}+mc${targetVer}"
 group   = project.maven_group
 
 base {
@@ -21,40 +38,92 @@ loom {
     }
 }
 
+// Client gametest (runClientGameTest): src/gametest. Never packaged into the release jar.
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = "histb-test"
+        enableGameTests = false
+        enableClientGameTests = true
+        eula = true
+    }
+}
+
+// dev convenience:  gradlew runClient "-PquickPlay=New World"  auto-joins that singleplayer save
+if (findProperty('quickPlay')) {
+    loom.runs.client.programArgs('--quickPlaySingleplayer', findProperty('quickPlay').toString())
+    loom.runs.client.programArgs('--username', 'HistbDev')
+}
+
+// ---- production run: launches the BUILT release jar (plus Fabric API, MaLiLib, Mod Menu) in a vanilla-style client ----
+//   gradlew runProductionClient "-Ptarget=26.3" ["-PprodWorld=<save folder name under run/prod/saves>"]
+configurations {
+    prodMods {
+        transitive = false
+        canBeConsumed = false
+    }
+}
+
+tasks.register('runProductionClient', net.fabricmc.loom.task.prod.ClientProductionRunTask) {
+    group = 'fabric'
+    description = 'Launch the built jar in a production (non-dev) client'
+    mods.from(tasks.named('jar'))
+    mods.from(configurations.prodMods)
+    runDir = layout.projectDirectory.dir('run/prod')
+    minecraftVersion = targetVer
+    if (findProperty('prodWorld')) {
+        programArgs.addAll('--quickPlaySingleplayer', findProperty('prodWorld').toString())
+    }
+}
+
+// version-specific source overlays
+t.overlays.each {
+    sourceSets.main.java.srcDir "src/main/versions/${it}/java"
+    sourceSets.client.java.srcDir "src/client/versions/${it}/java"
+}
+
 repositories {
+    mavenCentral()
+    // MaLiLib + Mod Menu both come from Modrinth's maven (masa's own maven has no 26.x builds; the Terraformers
+    // maven blocks CI runners).
     exclusiveContent {
         forRepository { maven { url = "https://api.modrinth.com/maven" } }
         filter { includeGroup "maven.modrinth" }
     }
-    maven { url = "https://maven.terraformersmc.com/releases" }
 }
 
 dependencies {
-    minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    prodMods "net.fabricmc.fabric-api:fabric-api:${t.fapi}"
+    prodMods "maven.modrinth:malilib:${t.malilib}"
+    prodMods "maven.modrinth:modmenu:${t.modmenu}"
+    minecraft "com.mojang:minecraft:${targetVer}"
 
-    // MaLiLib via Modrinth maven (masa's own maven has no 26.1 build yet)
-    implementation "maven.modrinth:malilib:${project.malilib_version}"
-
-    implementation "com.terraformersmc:modmenu:${project.modmenu_version}"
+    implementation "net.fabricmc:fabric-loader:${loaderVer}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${t.fapi}"
+    implementation "maven.modrinth:malilib:${t.malilib}"
+    implementation "maven.modrinth:modmenu:${t.modmenu}"
 }
 
 processResources {
-    def version = project.version
-    inputs.property "version", version
+    def props = [
+        version   : project.version.toString(),
+        mc_range  : t.range,
+        java_req  : t.java.toString(),
+        loader_req: t.loaderReq,
+    ]
+    inputs.properties props
     filesMatching("fabric.mod.json") {
-        expand "version": version
+        expand props
     }
 }
 
 tasks.withType(JavaCompile).configureEach {
-    it.options.release = 25
+    it.options.release = t.java
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_25
-    targetCompatibility = JavaVersion.VERSION_25
+    sourceCompatibility = JavaVersion.toVersion(t.java)
+    targetCompatibility = JavaVersion.toVersion(t.java)
     withSourcesJar()
 }
 

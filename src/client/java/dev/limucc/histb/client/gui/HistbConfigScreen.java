@@ -1,5 +1,7 @@
 package dev.limucc.histb.client.gui;
 
+import com.mojang.blaze3d.platform.InputConstants;
+import dev.limucc.histb.client.compat.ScreenNav;
 import dev.limucc.histb.client.config.ConfigManager;
 import dev.limucc.histb.client.config.ModConfig;
 import dev.limucc.histb.client.render.HighlightStore;
@@ -270,7 +272,7 @@ public class HistbConfigScreen extends Screen {
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (super.mouseClicked(event, doubleClick)) return true;
         double mx = event.x(), my = event.y();
-        if (event.button() != 0) return false;
+        if (event.button() != InputConstants.MOUSE_BUTTON_LEFT) return false;
 
         if (tab == Tab.PATTERNS) {
             int lt = listTop(), lb = listBottom();
@@ -318,5 +320,5 @@ public class HistbConfigScreen extends Screen {
     }
 
     @Override
-    public void onClose() { this.minecraft.gui.setScreen(this.parent); }
+    public void onClose() { ScreenNav.open(this.minecraft, this.parent); }
 }

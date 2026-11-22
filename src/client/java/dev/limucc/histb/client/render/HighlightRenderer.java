@@ -5,15 +5,15 @@ import dev.limucc.histb.client.config.ModConfig;
 import dev.limucc.histb.client.scan.Match;
 import fi.dy.masa.malilib.render.RenderUtils;
 import fi.dy.masa.malilib.util.data.Color4f;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
+import dev.limucc.histb.client.compat.RenderHook;
 import net.minecraft.core.BlockPos;
 
 import java.util.List;
 
 /**
- * Draws highlight boxes around active matches, using MaLiLib's RenderUtils
- * (the same renderer Litematica uses — it sets up its own camera/matrix, so we
- * just register on Fabric's stable AFTER_TRANSLUCENT_TERRAIN level event).
+ * Draws highlight boxes around active matches, using MaLiLib's RenderUtils (the same renderer Litematica uses -
+ * it sets up its own camera/matrix). The draw call is hooked per Minecraft era by {@code compat.RenderHook}:
+ * Fabric's AFTER_TRANSLUCENT_TERRAIN event on 26.1/26.2, MaLiLib's own world-last renderer on 26.3.
  *
  * Fully customizable via config: style (LINES / FILLED / BOTH), color, outline
  * alpha, fill alpha, line width, expand, through-walls, and lifetime.
@@ -23,7 +23,7 @@ public final class HighlightRenderer {
     private HighlightRenderer() {}
 
     public static void register() {
-        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(ctx -> render());
+        RenderHook.register(HighlightRenderer::render);
     }
 
     private static void render() {

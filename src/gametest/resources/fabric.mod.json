@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "histb-test",
+  "version": "1.0.0",
+  "name": "HISTB client gametest",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-client-gametest": ["dev.limucc.histb.gametest.HistbGameTest"]
+  },
+  "depends": {
+    "histb": "*"
+  }
+}
